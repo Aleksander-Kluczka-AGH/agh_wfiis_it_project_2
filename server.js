@@ -7,8 +7,18 @@ const sqlite3 = require('sqlite3').verbose();
 
 const util = require('./util/util.js');
 
-// database
+// database setup
 var sdb;
+var ldb = new sqlite3.Database(':memory:', (err) =>
+{
+    if(err) { return console.error(err.message); }
+    console.log('Local connection established.');
+});
+ldb.run(`CREATE TABLE med(date text, health text);`, [], (err) =>
+{
+    if(err) { return console.log(err.message); }
+    console.log(`Local database created.`);
+});
 
 // app configuration
 const app = express();
@@ -68,14 +78,50 @@ app.post('/login', function(req, res)
         req.session.user = "admin";
         req.session.admin = true;
 
-        // connect to server database
+        // connect to the remote database
         sdb = new sqlite3.Database('sql/dbase.db', (err) =>
         {
             if(err) { return console.error(err.message); }
-            console.log('Connection established.');
+            console.log('Remote connection established.');
         });
 
-        // TODO: sync client and server database
+        // sync client and server databases
+        ldb.all(`SELECT date, health FROM med;`, [], (err, rows) =>
+        {
+            // var result = [];
+            var query = "INSERT INTO med(date, health) VALUES";
+            if(err) { throw err; }
+            if(rows.length > 0)
+            {
+                // constructing the query
+                rows.forEach((row) =>
+                {
+                    query += `('${row.date}', '${row.health}'), `;
+                });
+                query = query.slice(0, -2);
+                query += ';';
+
+                // synchronizing remote database
+                sdb.run(query, [], (err) =>
+                {
+                    if(err) { return console.log(err.message); }
+                    console.log(`Inserted ${rows.length} rows to the remote database!`);
+                });
+
+                // clearing local database
+                ldb.run(`DELETE FROM med;`, [], (err) =>
+                {
+                    if(err) { throw err; }
+                    console.log(`Local database cleared!`);
+                    console.log(`Sync successful!`);
+                });
+            }
+            else
+            {
+                console.log(`No need to sync - there's no local data.`);
+            }
+        });
+
         util.display_front_page(req, res, "Login successful!");
     }
     else
@@ -100,7 +146,6 @@ app.get('/logout', function(req,res)
 
 app.get('/new', function(req, res)
 {
-    // result = pug.renderFile('templates/survey.pug');
     util.display_medical_form(req, res);
     // res.status(200).send(result);
 });
@@ -108,75 +153,41 @@ app.get('/new', function(req, res)
 app.post('/new', function(req, res)
 {
     const now = new Date(Date.now());
-    req.body.date = `${now.getFullYear()}
-                    /${now.getMonth()+1}
-                    /${now.getDate()}
-                    _${now.getHours()}
-                    /${now.getMinutes()}
-                    /${now.getSeconds()}`;
+    req.body.date = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}_${now.getHours()}/${now.getMinutes()}/${now.getSeconds()}`;
 
-    if(is_auth(req)) // online
-    {        
-        sdb.run(`INSERT INTO med(date, health) VALUES(?, ?)`, [req.body.date, req.body.description], (err) =>
-        {
-            if(err) { return console.log(err.message); }
-            console.log(`A row has been inserted with date ${req.body.date}`);
-        });
+    // online -> remote database
+    // offline -> local database
+    const db = is_auth(req) ? sdb : ldb;
+    const message = is_auth(req) ? "Added a new health status to the remote database." : "Added a new health status to the local database.";
 
-        // sdb.close((err) =>
-        // {
-        //     if(err) { return console.error(err.message); }
-        //     console.log('Closed the database connection.');
-        // });
-
-        util.display_front_page(req, res, "Added a new health status successfully.");
-    }
-    else // offline
+    db.run(`INSERT INTO med(date, health) VALUES(?, ?)`, [req.body.date, req.body.description], (err) =>
     {
-        util.display_front_page(req, res, "Please login to insert new medical records.");
-        // res.status(401).send("Zaloguj się aby to wysłać.");
-    }
+        if(err) { return console.log(err.message); }
+        console.log(`A row has been inserted with date ${req.body.date}`);
+    });
+
+    util.display_front_page(req, res, message);
 });
 
 app.get('/list', function(req, res)
 {
     var result = [];
-    if(is_auth(req)) // online
-    {
-        sdb.all(`SELECT date, health FROM med;`, [], (err, rows) =>
-        {
-            if(err) { throw err; }
-            console.log('pre:');
-            rows.forEach((row) =>
-            {
-                console.log(`${row.date}`);
-                result.push([`${row.date}`, `${row.health}`]);
-            });
-            console.log('outside:');
-            for(const [date, health] of result)
-            {
-                console.log(`date = ${date}, health = ${health}`);
-            }
-            util.display_list(req, res, result);
-        });
-    }
-    else // offline
-    {
-        util.display_front_page(req, res, "Please login in order to see medical history.");
-    }
-});
+    const db = is_auth(req) ? sdb : ldb;
+    const message = is_auth(req) ? "There are no records in the remote database." : "There are no records in the local database.";
 
-// app.get('/survey_results_offline', function(req, res)
-// {
-//     if(!req.session.admin)
-//     {
-//     //    result = pug.renderFile('templates/survey_results_offline.pug');
-//     //    res.status(200).send(result);
-//     }
-//     else
-//     {
-//         res.status(401).send("Wyloguj się aby zobaczyć wyniki offline.");
-//     }
-// });
+    db.all(`SELECT date, health FROM med;`, [], (err, rows) =>
+    {
+        if(err) { throw err; }
+        rows.forEach((row) => { result.push([`${row.date}`, `${row.health}`]); });
+        if(result.length > 0)
+        {
+            util.display_list(req, res, result);
+        }
+        else
+        {
+            util.display_front_page(req, res, message);
+        }
+    });
+});
 
 ////////////////////////////////////////////////////////////////////////////////////////////
