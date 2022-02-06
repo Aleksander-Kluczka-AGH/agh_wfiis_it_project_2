@@ -88,5 +88,98 @@ module.exports =
 
         var result = head + nav + form + end;
         res.status(200).send(result);
+    },
+
+    async display_medical_form(req, res)
+    {
+        var head = "";
+        var nav = "";
+        var form = "";
+        var end = "</body></html>";
+
+        fs.readFile('templates/head.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            head = data;
+        });
+
+        if(is_auth(req))
+        {
+            fs.readFile('templates/nav_auth.tpl', 'utf-8', (err, data) =>
+            {
+                if(err) { throw err; }
+                nav = data;
+            });
+        }
+        else
+        {
+            fs.readFile('templates/nav_guest.tpl', 'utf-8', (err, data) =>
+            {
+                if(err) { throw err; }
+                nav = data;
+            });
+        }
+
+        fs.readFile('templates/med_form.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            form = data;
+        });
+
+        // wait for all files to load
+        await new Promise(r => setTimeout(r, 20));
+
+        var result = head + nav + form + end;
+        res.status(200).send(result);
+    },
+
+    async display_list(req, res, results)
+    {
+        var head = "";
+        var nav = "";
+        var table = "";
+        var end = "</body></html>";
+
+        fs.readFile('templates/head.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            head = data;
+        });
+
+        if(is_auth(req))
+        {
+            fs.readFile('templates/nav_auth.tpl', 'utf-8', (err, data) =>
+            {
+                if(err) { throw err; }
+                nav = data;
+            });
+        }
+        else
+        {
+            fs.readFile('templates/nav_guest.tpl', 'utf-8', (err, data) =>
+            {
+                if(err) { throw err; }
+                nav = data;
+            });
+        }
+
+        fs.readFile('templates/med_form.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            form = data;
+        });
+
+        for(const [date, health] of results)
+        {
+            // console.log('row = ' + row);
+            table += `<div class='parag'><span class="bqaligned">Date: ${date}</span><blockquote>${health}</blockquote></div>`;
+        }
+        // table += ``;
+
+        // wait for all files to load
+        await new Promise(r => setTimeout(r, 20));
+
+        var result = head + nav + table + end;
+        res.status(200).send(result);
     }
 }

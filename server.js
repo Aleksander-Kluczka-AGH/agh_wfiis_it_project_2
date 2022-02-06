@@ -1,19 +1,14 @@
-// import { menu_with_message } from 'util/util.js';
-
 // imports
 const express = require('express');
 const bodyParser = require('body-parser');
-const mongodb = require('mongodb');
 const session = require('express-session');
 const fs = require('fs');
+const sqlite3 = require('sqlite3').verbose();
 
-var util = require('./util/util.js');
+const util = require('./util/util.js');
 
-// database and app constants
+// database
 var sdb;
-const dbname = '9kluczka';
-const host = '149.156.109.180'; // 149.156.109.180 - pascal.fis.agh.edu.pl
-const url = 'mongodb://9kluczka:pass9kluczka@' + host + '/' + dbname;
 
 // app configuration
 const app = express();
@@ -41,6 +36,12 @@ app.listen(port, function()
     console.log('Express server listening on port ' + port);
 });
 
+// resources
+app.get('/css/style.css', function(req, res)
+{
+    res.sendFile(__dirname + '/css/style.css');
+});
+
 // rest api
 app.get('/', function(req, res)
 {
@@ -57,7 +58,7 @@ app.post('/login', function(req, res)
     console.log(req.body);
     if(!req.body.login || !req.body.password)
     {
-        util.display_front_page(req, res, "login failed");
+        util.display_front_page(req, res, "Login failed.");
         // res.status(401).send("login failed");
     }
     else if((req.body.login === "admin")
@@ -68,183 +69,114 @@ app.post('/login', function(req, res)
         req.session.admin = true;
 
         // connect to server database
-        mongodb.MongoClient.connect(url, function(err, client)
+        sdb = new sqlite3.Database('sql/dbase.db', (err) =>
         {
-            if(err)
-            {
-                return console.log(err);
-            }
-
-            sdb = client.db(dbname);
-            console.log('Database connection established.');
+            if(err) { return console.error(err.message); }
+            console.log('Connection established.');
         });
+
         // TODO: sync client and server database
         util.display_front_page(req, res, "Login successful!");
     }
     else
     {
-        res.status(401).send("login failed");
+        util.display_front_page(req, res, "Login failed.");
     }
 });
 
 app.get('/logout', function(req,res)
 {
     req.session.destroy();
+    sdb.close((err) =>
+    {
+        if(err) { return console.error(err.message); }
+        console.log('Closed the database connection.');
+    });
+
     util.display_front_page(req, res, "Logout successful!");
 });
- 
 
-// app.get('/pomiary', function(req, res)
+///////////////////////////////////////////////////////////////////////////////////
+
+app.get('/new', function(req, res)
+{
+    // result = pug.renderFile('templates/survey.pug');
+    util.display_medical_form(req, res);
+    // res.status(200).send(result);
+});
+
+app.post('/new', function(req, res)
+{
+    const now = new Date(Date.now());
+    req.body.date = `${now.getFullYear()}
+                    /${now.getMonth()+1}
+                    /${now.getDate()}
+                    _${now.getHours()}
+                    /${now.getMinutes()}
+                    /${now.getSeconds()}`;
+
+    if(is_auth(req)) // online
+    {        
+        sdb.run(`INSERT INTO med(date, health) VALUES(?, ?)`, [req.body.date, req.body.description], (err) =>
+        {
+            if(err) { return console.log(err.message); }
+            console.log(`A row has been inserted with date ${req.body.date}`);
+        });
+
+        // sdb.close((err) =>
+        // {
+        //     if(err) { return console.error(err.message); }
+        //     console.log('Closed the database connection.');
+        // });
+
+        util.display_front_page(req, res, "Added a new health status successfully.");
+    }
+    else // offline
+    {
+        util.display_front_page(req, res, "Please login to insert new medical records.");
+        // res.status(401).send("Zaloguj się aby to wysłać.");
+    }
+});
+
+app.get('/list', function(req, res)
+{
+    var result = [];
+    if(is_auth(req)) // online
+    {
+        sdb.all(`SELECT date, health FROM med;`, [], (err, rows) =>
+        {
+            if(err) { throw err; }
+            console.log('pre:');
+            rows.forEach((row) =>
+            {
+                console.log(`${row.date}`);
+                result.push([`${row.date}`, `${row.health}`]);
+            });
+            console.log('outside:');
+            for(const [date, health] of result)
+            {
+                console.log(`date = ${date}, health = ${health}`);
+            }
+            util.display_list(req, res, result);
+        });
+    }
+    else // offline
+    {
+        util.display_front_page(req, res, "Please login in order to see medical history.");
+    }
+});
+
+// app.get('/survey_results_offline', function(req, res)
 // {
-//     client.query(`SELECT * FROM zad02.pomiar;`)
-//     .then(qres =>
+//     if(!req.session.admin)
 //     {
-//         // console.log('Table is successfully created');
-//         // console.log(qres);
-//         var table = "";
-//         for(let row of qres.rows)
-//         {
-//             var p = JSON.stringify(row);
-//             p = JSON.parse(p);
-//             table += `<div class="parag ccenter">ID: ` + p["id"] + `, czujnik: ` + p["czuj"] + `, temp: ` + p["temp"] + `, pres: ` + p["pres"] + `, time: ` + p["time"] + `</div>`;
-//             // console.log(p["id_wydzial"]);
-//             // res.send(row);
-//         }
-//         if(table == "")
-//         {
-//             table = "There are no results";
-//         }
-//         res.send(table);
-//     })
-//     .catch(err =>
+//     //    result = pug.renderFile('templates/survey_results_offline.pug');
+//     //    res.status(200).send(result);
+//     }
+//     else
 //     {
-//         console.error(err);
-//     })
+//         res.status(401).send("Wyloguj się aby zobaczyć wyniki offline.");
+//     }
 // });
 
-// app.post('/pomiary', function( req,res )
-// {
-//     console.log(req.body)
-    
-//     .then(qres =>
-//     {
-//         console.log(qres);
-//         var str = JSON.stringify(res);
-//         str = JSON.parse(str);
-
-//         client.query(`INSERT INTO zad02.czujnik(nazwa) values('` + str["nazwa"] `');`)
-//     })
-//     .catch(err =>
-//     {
-//         console.error(err);
-//     })
-// });
-
-// app.delete('/pomiary/:czujnik',function(req, res)
-// {
-//     console.log(req.params.czujnik);
-//     client.query(`DELETE FROM zad02.czujnik WHERE nazwa = '` + req.params.czujnik + `';`)
-//     .then(qres =>
-//     {
-//         console.log(qres);
-//     })
-//     .catch(err =>
-//     {
-//         console.error(err);
-//     })
-// });
-
-//     app.post('/pomiary/:czujnik', function( req,res )
-// {
-//     console.log(req.body)
-//     var str = JSON.stringify(req.body);
-//     str = JSON.parse(str);
-//     console.log(str);
-
-//     client.query(`INSERT INTO zad02.pomiar(czuj, temp, pres, time) values(
-//         '` + req.params.czujnik + `', 
-//         ` + str["temp"] + `,
-//         ` + str["pres"] + `,
-//         '` + str["time"] + `'::DATE);`
-//     )
-//     .then(qres =>
-//     {
-//         console.log(qres);
-//     })
-//     .catch(err =>
-//     {
-//         console.error(err);
-//     })
-// });
-
-// app.get('/pomiary/:czujnik', function(req, res)
-// {
-//     client.query(`SELECT * FROM zad02.pomiar WHERE czuj = '` + req.params.czujnik + `';`)
-//     .then(qres =>
-//     {
-//         // console.log('Table is successfully created');
-//         // console.log(qres);
-//         var table = "";
-//         for(let row of qres.rows)
-//         {
-//             var p = JSON.stringify(row);
-//             p = JSON.parse(p);
-//             table += `<div class="parag ccenter">ID: ` + p["id"] + `, czujnik: ` + p["czuj"] + `, temp: ` + p["temp"] + `, pres: ` + p["pres"] + `, time: ` + p["time"] + `</div>`;
-//             // console.log(p["id_wydzial"]);
-//             // res.send(row);
-//         }
-//         if(table == "")
-//         {
-//             table = "There are no results";
-//         }
-//         res.send(table);
-//     })
-//     .catch(err =>
-//     {
-//         console.error(err);
-//     })
-// });
-
-// app.get('/pomiary/:czujnik/:start/:stop', function(req, res)
-// {
-//     client.query(`SELECT * FROM zad02.pomiar WHERE czuj = '` + req.params.czujnik + `'
-//         AND time > '` + req.params.start + `' AND time < '` + req.params.stop + `';`)
-//     .then(qres =>
-//     {
-//         // console.log('Table is successfully created');
-//         // console.log(qres);
-//         var table = "";
-//         for(let row of qres.rows)
-//         {
-//             var p = JSON.stringify(row);
-//             p = JSON.parse(p);
-//             table += `<div class="parag ccenter">ID: ` + p["id"] + `, czujnik: ` + p["czuj"] + `, temp: ` + p["temp"] + `, pres: ` + p["pres"] + `, time: ` + p["time"] + `</div>`;
-//             // console.log(p["id_wydzial"]);
-//             // res.send(row);
-//         }
-//         if(table == "")
-//         {
-//             table = "There are no results";
-//         }
-//         res.send(table);
-//     })
-//     .catch(err =>
-//     {
-//         console.error(err);
-//     })
-// });
-
-// app.delete('/pomiary/:czujnik/:start/:stop',function(req, res)
-// {
-//     console.log(req.params.czujnik);
-//     client.query(`DELETE FROM zad02.pomiar WHERE czuj = '` + req.params.czujnik + `'
-//     AND time > '` + req.params.start + `' AND time < '` + req.params.stop + `';`)
-//     .then(qres =>
-//     {
-//         console.log(qres);
-//     })
-//     .catch(err =>
-//     {
-//         console.error(err);
-//     })
-// });
+////////////////////////////////////////////////////////////////////////////////////////////
