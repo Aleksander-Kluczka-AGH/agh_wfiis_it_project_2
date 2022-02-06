@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<link rel="stylesheet" href="../styles/style.css">
+	<link rel="stylesheet" type="text/css" href="css/style.css">
 	<title>Kluczka - Internet Technology</title>
 </head>
 <body>
