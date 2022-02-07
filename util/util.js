@@ -14,6 +14,7 @@ module.exports =
         var head = "";
         var nav = "";
         var mess = "";
+        var about = "";
         var end = "</body></html>";
         if(message)
         { 
@@ -41,11 +42,16 @@ module.exports =
                 nav = data;
             });
         }
+        fs.readFile('templates/about.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            about = data;
+        });
 
         // wait for all files to load
         await new Promise(r => setTimeout(r, 20));
 
-        var result = head + nav + mess + end;
+        var result = head + nav + mess + about + end;
         res.status(200).send(result);
     },
 
@@ -181,5 +187,46 @@ module.exports =
 
         var result = head + nav + table + end;
         res.status(200).send(result);
+    },
+
+    async display_return_info(req, res, message = "", status = 200)
+    {
+        var head = "";
+        var nav = "";
+        var mess = "";
+        var end = "</body></html>";
+        if(message)
+        { 
+            mess = `<div class="parag ccenter">` + message + `</div>`;
+        }
+
+        fs.readFile('templates/head.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            head = data;
+        });
+
+        if(is_auth(req))
+        {
+            fs.readFile('templates/nav_auth.tpl', 'utf-8', (err, data) =>
+            {
+                if(err) { throw err; }
+                nav = data;
+            });
+        }
+        else
+        {
+            fs.readFile('templates/nav_guest.tpl', 'utf-8', (err, data) =>
+            {
+                if(err) { throw err; }
+                nav = data;
+            });
+        }
+
+        // wait for all files to load
+        await new Promise(r => setTimeout(r, 20));
+
+        var result = head + nav + mess + end;
+        res.status(status).send(result);
     }
 }

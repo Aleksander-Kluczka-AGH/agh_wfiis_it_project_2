@@ -52,7 +52,12 @@ app.get('/css/style.css', function(req, res)
     res.sendFile(__dirname + '/css/style.css');
 });
 
-// rest api
+app.get('/r/css/style.css', function(req, res) // for raw api messages
+{
+    res.sendFile(__dirname + '/css/style.css');
+});
+
+// shiny rest api
 app.get('/', function(req, res)
 {
     util.display_front_page(req, res);
@@ -60,7 +65,18 @@ app.get('/', function(req, res)
 
 app.get('/login', function(req, res)
 {
-    util.display_login_page(req, res);
+    if(is_auth(req))
+    {
+        fs.readFile('templates/redirect.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            res.status(301).send(data);
+        });
+    }
+    else
+    {
+        util.display_login_page(req, res);
+    }
 });
 
 app.post('/login', function(req, res)
@@ -133,13 +149,23 @@ app.post('/login', function(req, res)
 app.get('/logout', function(req,res)
 {
     req.session.destroy();
-    sdb.close((err) =>
+    if(is_auth(req))
     {
-        if(err) { return console.error(err.message); }
-        console.log('Closed the database connection.');
-    });
-
-    util.display_front_page(req, res, "Logout successful!");
+        sdb.close((err) =>
+        {
+            if(err) { return console.error(err.message); }
+            console.log('Closed the database connection.');
+        });
+        util.display_front_page(req, res, "Logout successful!");
+    }
+    else
+    {
+        fs.readFile('templates/redirect.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            res.status(301).send(data);
+        });
+    }
 });
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -153,7 +179,12 @@ app.get('/new', function(req, res)
 app.post('/new', function(req, res)
 {
     const now = new Date(Date.now());
-    req.body.date = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}_${now.getHours()}/${now.getMinutes()}/${now.getSeconds()}`;
+    let day = (now.getDate() > 9) ? `${now.getDate()}` : `0${now.getDate()}`;
+    let month = (now.getMonth()+1 > 9) ? `${now.getMonth()+1}` : `0${now.getMonth()+1}`;
+    let seconds = (now.getSeconds() > 9) ? `${now.getSeconds()}` : `0${now.getSeconds()}`;
+    let minutes = (now.getMinutes() > 9) ? `${now.getMinutes()}` : `0${now.getMinutes()}`;
+    let hours = (now.getHours() > 9) ? `${now.getHours()}` : `0${now.getHours()}`;
+    req.body.date = `${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 
     // online -> remote database
     // offline -> local database
@@ -185,9 +216,147 @@ app.get('/list', function(req, res)
         }
         else
         {
-            util.display_front_page(req, res, message);
+            // util.display_front_page(req, res, message);
+            util.display_return_info(req, res, message);
         }
     });
+});
+
+// raw rest api, available only for remote database
+app.get('/r/list', function(req, res)
+{
+    if(is_auth(req))
+    {
+        sdb.all(`SELECT date, health FROM med;`, [], (err, rows) =>
+        {
+            if(err) { throw err; }
+            if(rows.length > 0)
+            {
+                console.log(`RAW API 200: Returning ${rows.length} results.`);
+                res.status(200).send(rows);
+            }
+            else
+            {
+                console.log(`RAW API 200: No contents found.`);
+                res.status(200).send("No contents.");
+            }
+        });
+    }
+    else
+    {
+        util.display_return_info(req, res, "Unauthorized access, please log in to get read access to raw API.", 401);
+    }
+});
+
+app.get('/r/list/:byear/:bmonth/:bday', function(req, res)
+{
+    // format must be yyyy/mm/dd
+    if(is_auth(req))
+    {
+        sdb.all(`SELECT date, health FROM med WHERE date > '${req.params.byear}-${req.params.bmonth}-${req.params.bday}';`,
+            [], (err, rows) =>
+        {
+            if(err) { throw err; }
+            if(rows.length > 0)
+            {
+                console.log(`RAW API 200: Returning ${rows.length} results.`);
+                res.status(200).send(rows);
+            }
+            else
+            {
+                console.log(`RAW API 200: No contents found.`);
+                res.status(200).send("No contents.");
+            }
+        });
+    }
+    else
+    {
+        util.display_return_info(req, res, "Unauthorized access, please log in to get read access to raw API.", 401);
+    }
+});
+
+app.get('/r/list/:byear/:bmonth/:bday/:eyear/:emonth/:eday', function(req, res)
+{
+    // format must be yyyy/mm/dd
+    if(is_auth(req))
+    {
+        sdb.all(`SELECT date, health FROM med WHERE date > '${req.params.byear}-${req.params.bmonth}-${req.params.bday}' 
+            AND date < '${req.params.eyear}-${req.params.emonth}-${req.params.eday}';`,
+            [], (err, rows) =>
+        {
+            if(err) { throw err; }
+            if(rows.length > 0)
+            {
+                console.log(`RAW API 200: Returning ${rows.length} results.`);
+                res.status(200).send(rows);
+            }
+            else
+            {
+                console.log(`RAW API 200: No contents found.`);
+                res.status(200).send("No contents.");
+            }
+        });
+    }
+    else
+    {
+        util.display_return_info(req, res, "Unauthorized access, please log in to get read access to raw API.", 401);
+    }
+});
+
+app.delete('/r/list', function(req, res)
+{
+    if(is_auth(req))
+    {
+        sdb.get(`DELETE FROM med;`, [], (err) =>
+        {
+            if(err) { throw err; }
+            console.log(`RAW API 200: Removed all rows.`);
+            res.status(200).send(`All rows removed.`);
+        });
+    }
+    else
+    {
+        util.display_return_info(req, res, "Unauthorized access, please log in to get access to raw API.", 401);
+    }
+});
+
+app.delete('/r/list/:byear/:bmonth/:bday', function(req, res)
+{
+    // format must be yyyy/mm/dd
+    if(is_auth(req))
+    {
+        sdb.get(`DELETE FROM med WHERE date > '${req.params.byear}-${req.params.bmonth}-${req.params.bday}';`,
+            [], (err) =>
+        {
+            if(err) { throw err; }
+            console.log(`RAW API 200: Removed some rows.`);
+            res.status(200).send("Removed some rows.");
+        });
+    }
+    else
+    {
+        util.display_return_info(req, res, "Unauthorized access, please log in to get access to raw API.", 401);
+    }
+});
+
+app.delete('/r/list/:byear/:bmonth/:bday/:eyear/:emonth/:eday', function(req, res)
+{
+    // format must be yyyy/mm/dd
+    if(is_auth(req))
+    {
+        sdb.get(`DELETE FROM med WHERE date > '${req.params.byear}-${req.params.bmonth}-${req.params.bday}' 
+            AND date < '${req.params.eyear}-${req.params.emonth}-${req.params.eday}';`,
+            [], (err) =>
+        {
+            if(err) { throw err; }
+            console.log(`RAW API 200: Removed some rows.`);
+            res.status(200).send("Removed some rows.");
+        });
+    }
+    else
+    {
+        util.display_return_info(req, res, "Unauthorized access, please log in to get access to raw API.", 401);
+    }
 });
 
 ////////////////////////////////////////////////////////////////////////////////////////////
