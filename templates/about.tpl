@@ -58,7 +58,7 @@
     The difference is that the former uses an in-memory location while the latter saves the data to a file.
     <br><br>
     <h3>REST API</h3>
-    The site provides read-only raw REST API to the server database to authorized users.
+    The site provides raw REST API to the server database to authorized users.
     This way, additional components and functionality can be added without compromising the already implemented features.
     <br><br>
     The site UI also makes use of REST for accessibility to all users.
