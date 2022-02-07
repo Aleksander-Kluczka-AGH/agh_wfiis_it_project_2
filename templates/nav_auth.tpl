@@ -9,6 +9,6 @@
         <a href="/new">New Entry</a>
     </div>
     <div class="navbar-entry ccenter">
-        <a href="/logout">Logout</a>
+        <a href="/logout">Log out</a>
     </div>
 </nav>

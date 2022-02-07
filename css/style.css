@@ -15,7 +15,7 @@ body
 	align-items: center;
 }
 
-h3, h4, h5
+h2, h3, h4, h5
 {
 	padding: 0;
 	margin: 0;
@@ -81,13 +81,19 @@ blockquote
 
 textarea
 {
+	min-width: 50%;
 	width: 70%;
+	max-width: 90%;
+
+	min-height: 50px;
 	height: 200px;
+	max-height: 400px;
+	
 	border: 0px;
 	color: #E0E0E0;
 }
 
-textarea:focus
+textarea:focus, input:focus
 {
 	outline: 0px;
 	border-left-width: 5px;
@@ -95,25 +101,50 @@ textarea:focus
 	border-left-color: #A3A3A3;
 }
 
-textarea::placeholder /* Chrome, Firefox, Opera, Safari 10.1+ */
+textarea::placeholder, input::placeholder /* Chrome, Firefox, Opera, Safari 10.1+ */
 {
-	color: #3D3D3D;
+	color: #1F1F1F;
 	opacity: 1;
 }
 
-textarea::-webkit-input-placeholder /* Edge */
+textarea::-webkit-input-placeholder, input::-webkit-input-placeholder /* Edge */
 {
-	color: #3D3D3D;
+	color: #1F1F1F;
 }
   
-textarea:-ms-input-placeholder /* Internet Explorer 10-11 */
+textarea:-ms-input-placeholder, input:-ms-input-placeholder /* Internet Explorer 10-11 */
 {
-	color: #3D3D3D;
+	color: #1F1F1F;
 }
   
-textarea::-ms-input-placeholder /* Microsoft Edge */
+textarea::-ms-input-placeholder, input::-ms-input-placeholder /* Microsoft Edge */
 {
-	color: #3D3D3D;
+	color: #1F1F1F;
+}
+
+input
+{
+	text-align: justify;
+	background-color: #707070;
+	color: #E0E0E0;
+	border: 0px;
+	padding-top: 12px;
+	padding-bottom: 12px;
+	padding-left: 18px;
+	padding-right: 18px;
+}
+
+.button
+{
+	background-color: #707070;
+	color: #E0E0E0;
+	border: 0px;
+	padding-top: 12px;
+	padding-bottom: 12px;
+	padding-left: 18px;
+	padding-right: 18px;
+	text-align: center;
+	text-decoration: none;
 }
 
 .parag
@@ -128,8 +159,8 @@ textarea::-ms-input-placeholder /* Microsoft Edge */
 	margin-top: 6px;
 	margin-bottom: 6px;
 
-	padding-top: 9px;
-	padding-bottom: 9px;
+	padding-top: 15px;
+	padding-bottom: 15px;
 	padding-left: 12px;
 	padding-right: 12px;
 }

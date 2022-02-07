@@ -3,6 +3,12 @@
         <a href="/">About</a>
     </div>
     <div class="navbar-entry ccenter">
-        <a href="/login">Login</a>
+        <a href="/list">Local List</a>
+    </div>
+    <div class="navbar-entry ccenter">
+        <a href="/new">Local Entry</a>
+    </div>
+    <div class="navbar-entry ccenter">
+        <a href="/login">Log in</a>
     </div>
 </nav>
