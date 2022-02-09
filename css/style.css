@@ -147,6 +147,18 @@ input
 	text-decoration: none;
 }
 
+#data_list
+{
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+
+	padding: 0px;
+	margin: 0px;
+	width: 100%;
+	/* border: solid 1px white; */
+}
+
 .parag
 {
 	background-color: #3D3D3D;

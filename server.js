@@ -9,16 +9,6 @@ const util = require('./util/util.js');
 
 // database setup
 var sdb;
-var ldb = new sqlite3.Database(':memory:', (err) =>
-{
-    if(err) { return console.error(err.message); }
-    console.log('Local connection established.');
-});
-ldb.run(`CREATE TABLE med(date text, health text);`, [], (err) =>
-{
-    if(err) { return console.log(err.message); }
-    console.log(`Local database created.`);
-});
 
 // app configuration
 const app = express();
@@ -57,6 +47,16 @@ app.get('/r/css/style.css', function(req, res) // for raw api messages
     res.sendFile(__dirname + '/css/style.css');
 });
 
+app.get('/js/offline.js', function(req, res)
+{
+    res.sendFile(__dirname + '/js/offline.js');
+});
+
+app.get('/js/offline_display.js', function(req, res)
+{
+    res.sendFile(__dirname + '/js/offline_display.js');
+});
+
 // shiny rest api
 app.get('/', function(req, res)
 {
@@ -81,7 +81,6 @@ app.get('/login', function(req, res)
 
 app.post('/login', function(req, res)
 {
-    console.log(req.body);
     if(!req.body.login || !req.body.password)
     {
         util.display_front_page(req, res, "Login failed.");
@@ -98,44 +97,7 @@ app.post('/login', function(req, res)
         sdb = new sqlite3.Database('sql/dbase.db', (err) =>
         {
             if(err) { return console.error(err.message); }
-            console.log('Remote connection established.');
-        });
-
-        // sync client and server databases
-        ldb.all(`SELECT date, health FROM med;`, [], (err, rows) =>
-        {
-            // var result = [];
-            var query = "INSERT INTO med(date, health) VALUES";
-            if(err) { throw err; }
-            if(rows.length > 0)
-            {
-                // constructing the query
-                rows.forEach((row) =>
-                {
-                    query += `('${row.date}', '${row.health}'), `;
-                });
-                query = query.slice(0, -2);
-                query += ';';
-
-                // synchronizing remote database
-                sdb.run(query, [], (err) =>
-                {
-                    if(err) { return console.log(err.message); }
-                    console.log(`Inserted ${rows.length} rows to the remote database!`);
-                });
-
-                // clearing local database
-                ldb.run(`DELETE FROM med;`, [], (err) =>
-                {
-                    if(err) { throw err; }
-                    console.log(`Local database cleared!`);
-                    console.log(`Sync successful!`);
-                });
-            }
-            else
-            {
-                console.log(`No need to sync - there's no local data.`);
-            }
+            // console.log('Remote connection established.'); // DEBUG
         });
 
         util.display_front_page(req, res, "Login successful!");
@@ -154,7 +116,7 @@ app.get('/logout', function(req,res)
         sdb.close((err) =>
         {
             if(err) { return console.error(err.message); }
-            console.log('Closed the database connection.');
+            // console.log('Closed the database connection.'); // DEBUG
         });
         util.display_front_page(req, res, "Logout successful!");
     }
@@ -178,48 +140,61 @@ app.get('/new', function(req, res)
 
 app.post('/new', function(req, res)
 {
-    const now = new Date(Date.now());
-    let day = (now.getDate() > 9) ? `${now.getDate()}` : `0${now.getDate()}`;
-    let month = (now.getMonth()+1 > 9) ? `${now.getMonth()+1}` : `0${now.getMonth()+1}`;
-    let seconds = (now.getSeconds() > 9) ? `${now.getSeconds()}` : `0${now.getSeconds()}`;
-    let minutes = (now.getMinutes() > 9) ? `${now.getMinutes()}` : `0${now.getMinutes()}`;
-    let hours = (now.getHours() > 9) ? `${now.getHours()}` : `0${now.getHours()}`;
-    req.body.date = `${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    // sanity check
+    if(`${req.body.date}` === "")
+    {
+        const now = new Date(Date.now());
+        let day = (now.getDate() > 9) ? `${now.getDate()}` : `0${now.getDate()}`;
+        let month = (now.getMonth()+1 > 9) ? `${now.getMonth()+1}` : `0${now.getMonth()+1}`;
+        let seconds = (now.getSeconds() > 9) ? `${now.getSeconds()}` : `0${now.getSeconds()}`;
+        let minutes = (now.getMinutes() > 9) ? `${now.getMinutes()}` : `0${now.getMinutes()}`;
+        let hours = (now.getHours() > 9) ? `${now.getHours()}` : `0${now.getHours()}`;
+        req.body.date = `${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+    // console.log(req.body); // DEBUG
 
-    // online -> remote database
-    // offline -> local database
-    const db = is_auth(req) ? sdb : ldb;
-    const message = is_auth(req) ? "Added a new health status to the remote database." : "Added a new health status to the local database.";
+    if(!sdb) // if for any reason it is not setup here
+    {
+        sdb = new sqlite3.Database('sql/dbase.db', (err) =>
+        {
+            if(err) { return console.error(err.message); }
+            // console.log('Remote connection established.'); // DEBUG
+        });
+    }
 
-    db.run(`INSERT INTO med(date, health) VALUES(?, ?)`, [req.body.date, req.body.description], (err) =>
+    sdb.run(`INSERT INTO med(date, health) VALUES(?, ?)`, [req.body.date, req.body.description], (err) =>
     {
         if(err) { return console.log(err.message); }
-        console.log(`A row has been inserted with date ${req.body.date}`);
+        // console.log(`A row has been inserted with date ${req.body.date}`); // DEBUG
     });
 
-    util.display_front_page(req, res, message);
+    util.display_front_page(req, res, "Added a new health status to the remote database.");
 });
 
-app.get('/list', function(req, res)
+app.get('/list', async function(req, res)
 {
     var result = [];
-    const db = is_auth(req) ? sdb : ldb;
-    const message = is_auth(req) ? "There are no records in the remote database." : "There are no records in the local database.";
-
-    db.all(`SELECT date, health FROM med;`, [], (err, rows) =>
+    if(is_auth(req))
     {
-        if(err) { throw err; }
-        rows.forEach((row) => { result.push([`${row.date}`, `${row.health}`]); });
-        if(result.length > 0)
+        sdb.all(`SELECT date, health FROM med;`, [], (err, rows) =>
         {
-            util.display_list(req, res, result);
-        }
-        else
-        {
-            // util.display_front_page(req, res, message);
-            util.display_return_info(req, res, message);
-        }
-    });
+            if(err) { throw err; }
+            rows.forEach((row) => { result.push([`${row.date}`, `${row.health}`]); });
+            if(result.length > 0)
+            {
+                util.display_list(req, res, result);
+            }
+            else
+            {
+                util.display_return_info(req, res, "There are no records in the remote database.");
+            }
+        });
+    }
+    else
+    {
+        var list = await fs.promises.readFile('templates/offline_list.tpl', { encoding: 'utf-8' });
+        res.status(200).send(list)
+    }
 });
 
 // raw rest api, available only for remote database

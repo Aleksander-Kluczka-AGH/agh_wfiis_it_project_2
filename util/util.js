@@ -116,6 +116,12 @@ module.exports =
                 if(err) { throw err; }
                 nav = data;
             });
+            // console.log("Displaying online form."); // DEBUG
+            fs.readFile('templates/med_form_online.tpl', 'utf-8', (err, data) =>
+            {
+                if(err) { throw err; }
+                form = data;
+            });
         }
         else
         {
@@ -124,13 +130,19 @@ module.exports =
                 if(err) { throw err; }
                 nav = data;
             });
+            // console.log("Displaying offline form."); // DEBUG
+            fs.readFile('templates/med_form_offline.tpl', 'utf-8', (err, data) =>
+            {
+                if(err) { throw err; }
+                form = data;
+            });
         }
 
-        fs.readFile('templates/med_form.tpl', 'utf-8', (err, data) =>
-        {
-            if(err) { throw err; }
-            form = data;
-        });
+        // fs.readFile('templates/med_form.tpl', 'utf-8', (err, data) =>
+        // {
+        //     if(err) { throw err; }
+        //     form = data;
+        // });
 
         // wait for all files to load
         await new Promise(r => setTimeout(r, 20));
@@ -169,18 +181,10 @@ module.exports =
             });
         }
 
-        fs.readFile('templates/med_form.tpl', 'utf-8', (err, data) =>
-        {
-            if(err) { throw err; }
-            form = data;
-        });
-
         for(const [date, health] of results)
         {
-            // console.log('row = ' + row);
             table += `<div class='parag'><span class="bqaligned">Date: ${date}</span><blockquote>${health}</blockquote></div>`;
         }
-        // table += ``;
 
         // wait for all files to load
         await new Promise(r => setTimeout(r, 20));

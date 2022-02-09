@@ -3,6 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<link rel="stylesheet" type="text/css" href="css/style.css">
+	<script src="js/offline.js"></script>
 	<title>Kluczka - Internet Technology</title>
 </head>
 <body>
