@@ -15,6 +15,7 @@ module.exports =
         var nav = "";
         var mess = "";
         var about = "";
+        var footer = "";
         var end = "</body></html>";
         if(message)
         { 
@@ -47,11 +48,16 @@ module.exports =
             if(err) { throw err; }
             about = data;
         });
+        fs.readFile('templates/footer.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            footer = data;
+        });
 
         // wait for all files to load
         await new Promise(r => setTimeout(r, 20));
 
-        var result = head + nav + mess + about + end;
+        var result = head + nav + mess + about +footer + end;
         res.status(200).send(result);
     },
 
@@ -156,6 +162,7 @@ module.exports =
         var head = "";
         var nav = "";
         var table = "";
+        var footer = "";
         var end = "</body></html>";
 
         fs.readFile('templates/head.tpl', 'utf-8', (err, data) =>
@@ -181,6 +188,12 @@ module.exports =
             });
         }
 
+        fs.readFile('templates/footer.tpl', 'utf-8', (err, data) =>
+        {
+            if(err) { throw err; }
+            footer = data;
+        });
+
         for(const [date, health] of results)
         {
             table += `<div class='parag'><span class="bqaligned">Date: ${date}</span><blockquote>${health}</blockquote></div>`;
@@ -189,7 +202,7 @@ module.exports =
         // wait for all files to load
         await new Promise(r => setTimeout(r, 20));
 
-        var result = head + nav + table + end;
+        var result = head + nav + table + footer + end;
         res.status(200).send(result);
     },
 

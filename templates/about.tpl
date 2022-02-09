@@ -54,8 +54,10 @@
     The project uses templates in order to achieve site content modularity while sacrificing diminishing amounts of loading time.
     <br><br>
     <h3>Server Database</h3>
-    Both local and server databases are realized using the SQLite3 module.
-    The difference is that the former uses an in-memory location while the latter saves the data to a file.
+    The server database is realized using the SQLite3 module.
+    <br><br>
+    <h3>Local Database</h3>
+    The local database is managed by IndexedDB technology which is implemented in the web browser.
     <br><br>
     <h3>REST API</h3>
     The site provides raw REST API to the server database to authorized users.
