@@ -22,8 +22,6 @@ req.onerror = function(event)
 // form management
 function readAnswers()
 {
-    var okay = true;
-
     var form = document.getElementById("med_form_offline");
     var description = form.description;
     var date = form.date;
@@ -39,8 +37,7 @@ function readAnswers()
         date.value = `${now.getFullYear()}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
 
-    okay = (description.value.length != 0);
-    if(okay)
+    if(description.value.length != 0)
     {
         newRecord(date.value, description.value);
     }
@@ -66,7 +63,7 @@ function newRecord(date, description)
     window.location.replace("/");
 }
 
-function clearStore(name)
+function clearLocalData(name)
 {
     var trans = db.transaction(name, "readwrite");
     var store = trans.objectStore(name);
@@ -103,7 +100,6 @@ function readData(name, callback)
     trans.onerror = (event) => { console.log("Error reading local data."); };
 }
 
-// FETCH version
 function sendToRemoteCallback(data)
 {
     // console.log("data = " + data); // DEBUG
@@ -118,6 +114,6 @@ function sendToRemoteCallback(data)
         })
         // .then((response) => { console.log("Local data sent to the remote database."); }) // DEBUG
         .catch((error) => { console.log("Error on sending local data: ", error); });
-        clearStore('med');
+        clearLocalData('med');
     }
 }
